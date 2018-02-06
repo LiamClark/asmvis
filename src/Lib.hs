@@ -11,17 +11,30 @@ import qualified Text.Parsec.Token as P
 someFunc :: IO ()
 someFunc = putStrLn "someFunc"
 
-data Op = Mov String String
+data Op = Mov Register Register | Push Register
         deriving (Eq, Show)
 
 data State = MyState
 
+data Register = Register String | Value String | ValueOffSet String Int
+  deriving (Eq, Show)
+
 parseMov :: Parsec String () Op
-parseMov = (asmLexeme $ string "mov") >> (Mov <$> parseRegister <* (asmLexeme $ char ',') <*> parseRegister)
+parseMov = (asmReserved "mov") >> (Mov <$> parseRegisterLiteral <* (asmLexeme $ char ',') <*> parseRegisterLiteral)
 
--- parsePush :: Parsec String () Op
+parsePush :: Parsec String () Op
+parsePush = asmReserved "push" >> Push <$> parseRegisterLiteral
 
-parseRegister = asmLexeme $ liftA3 mkRegister letter letter letter
+parseRegister :: Parsec String () Register
+parseRegister = choice [parseRegisterLiteral]
+
+parseRegisterLiteral :: ParsecT String () Identity Register
+parseRegisterLiteral = asmLexeme $ Register <$> liftA3 mkRegister letter letter letter
+
+
+parseDWordPtr :: Parsec String () Register
+parseDWordPtr = asmReserved "DWORD" >> asmReserved "PTR" >> parseRegister
+-- parseDWordPtr = undefined
 
 mkRegister :: Char -> Char -> Char -> String
 mkRegister a b c = [a, b, c]
@@ -30,10 +43,12 @@ tokenParser :: P.TokenParser ()
 tokenParser = P.makeTokenParser asmIntelDef
 
 
-asmLexeme = P.lexeme tokenParser 
+asmLexeme = P.lexeme tokenParser
+asmReserved = P.reserved tokenParser
+asmBrackets = P.brackets tokenParser
 
 asmIntelDef :: P.GenLanguageDef String () Identity
-asmIntelDef = P.LanguageDef 
+asmIntelDef = P.LanguageDef
   {
      P.commentStart = ""
     ,P.commentEnd = ""
@@ -43,8 +58,8 @@ asmIntelDef = P.LanguageDef
     ,P.identLetter = alphaNum
     ,P.opStart = none
     ,P.opLetter = none
-    ,P.reservedNames = []
+    ,P.reservedNames = ["mov", "push", "DWORD", "PTR"]
     ,P.reservedOpNames = []
     ,P.caseSensitive = False
-  } 
+  }
   where none = satisfy $ const False
