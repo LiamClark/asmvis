@@ -1,5 +1,4 @@
-module Lib
-    where
+module AtParser where
 
 import Text.Parsec.Char
 import Text.Parsec.Prim
@@ -8,28 +7,31 @@ import Data.Functor.Identity
 import Control.Applicative hiding ((<|>))
 import qualified Text.Parsec.Token as P
 
-someFunc :: IO ()
-someFunc = putStrLn "someFunc"
-
-data Op = Mov Register Register | Push Register
-        deriving (Eq, Show)
+data Op = Mov WordQualifier Register Register | Push WordQualifier Register
+    deriving (Eq, Show)
 
 data State = MyState
+
+data WordQualifier = Q
+  deriving (Eq, Show)
 
 data Register = Register String | DereferencedRegister String | DereferencedRegisterOffset String Integer
   deriving (Eq, Show)
 
 parseMov :: Parsec String () Op
-parseMov = (asmReserved "mov") >> (Mov <$> parseRegisterLiteral <* (asmLexeme $ char ',') <*> parseRegisterLiteral)
+parseMov = (Mov <$> (qualifiedInstruction "mov") <*> parseRegisterLiteral <* (asmLexeme $ char ',') <*> parseRegisterLiteral)
 
 parsePush :: Parsec String () Op
-parsePush = asmReserved "push" >> Push <$> parseRegisterLiteral
+parsePush = Push <$> qualifiedInstruction "push" <*> parseRegisterLiteral
+
+qualifiedInstruction :: String -> Parsec String () WordQualifier
+qualifiedInstruction name = asmLexeme $ const Q <$> (string name >> (char 'q'))
 
 parseRegister :: Parsec String () Register
 parseRegister = parseRegisterLiteral <|> (try parseRegisterValueOffSet) <|> parseDereferencedRegister
 
 parseRegisterLiteralToString :: ParsecT String () Identity String
-parseRegisterLiteralToString = asmLexeme $ liftA3 mkRegister letter letter letter
+parseRegisterLiteralToString = asmLexeme $ char '%' >> liftA3 mkRegister letter letter letter
 
 parseRegisterLiteral :: ParsecT String () Identity Register
 parseRegisterLiteral = Register <$> parseRegisterLiteralToString
