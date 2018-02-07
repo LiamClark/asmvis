@@ -7,7 +7,9 @@ import Data.Functor.Identity
 import Control.Applicative hiding ((<|>))
 import qualified Text.Parsec.Token as P
 
-data Op = Mov WordQualifier Register Register | Push WordQualifier Register
+data Op = Mov WordQualifier Register Register 
+        | Push WordQualifier Register
+        | IMul WordQualifier Register Register
     deriving (Eq, Show)
 
 data State = MyState
@@ -19,10 +21,13 @@ data Register = Register String | DereferencedRegister String | DereferencedRegi
   deriving (Eq, Show)
 
 parseMov :: Parsec String () Op
-parseMov = (Mov <$> (qualifiedInstruction "mov") <*> parseRegister <* (asmLexeme $ char ',') <*> parseRegister)
+parseMov = parseTwoRegisters $ Mov <$> (qualifiedInstruction "mov")
 
 parsePush :: Parsec String () Op
 parsePush = Push <$> qualifiedInstruction "push" <*> parseRegister
+
+parseIMul :: Parsec String () Op
+parseIMul = parseTwoRegisters $ IMul <$> (qualifiedInstruction "imul")
 
 qualifiedInstruction :: String -> Parsec String () WordQualifier
 qualifiedInstruction name = asmLexeme $ (string name >> parseWordQualifier)
@@ -33,6 +38,8 @@ parseWordQualifier =  partialConvert <$> oneOf "lq"
                                 'l' -> L
                                 'q' -> Q
 
+parseTwoRegisters :: Parsec String () (Register -> Register -> Op)  -> Parsec String () Op
+parseTwoRegisters op = op <*> parseRegister <* (asmLexeme $ char ',') <*> parseRegister
 
 parseRegister :: Parsec String () Register
 parseRegister = (try parseDereferencedRegister) <|> (try parseRegisterLiteral) <|> (try parseRegisterValueOffSet)
