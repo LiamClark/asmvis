@@ -5,7 +5,7 @@ import Text.Parsec.Char
 import Text.Parsec.Prim
 import Text.Parsec
 import Data.Functor.Identity
-import Control.Applicative
+import Control.Applicative hiding ((<|>))
 import qualified Text.Parsec.Token as P
 
 someFunc :: IO ()
@@ -16,7 +16,7 @@ data Op = Mov Register Register | Push Register
 
 data State = MyState
 
-data Register = Register String | Value String | ValueOffSet String Int
+data Register = Register String | DereferencedRegister String | DereferencedRegisterOffset String Integer
   deriving (Eq, Show)
 
 parseMov :: Parsec String () Op
@@ -26,10 +26,19 @@ parsePush :: Parsec String () Op
 parsePush = asmReserved "push" >> Push <$> parseRegisterLiteral
 
 parseRegister :: Parsec String () Register
-parseRegister = choice [parseRegisterLiteral]
+parseRegister = parseRegisterLiteral <|> (try parseRegisterValueOffSet) <|> parseDereferencedRegister
+
+parseRegisterLiteralToString :: ParsecT String () Identity String
+parseRegisterLiteralToString = asmLexeme $ liftA3 mkRegister letter letter letter
 
 parseRegisterLiteral :: ParsecT String () Identity Register
-parseRegisterLiteral = asmLexeme $ Register <$> liftA3 mkRegister letter letter letter
+parseRegisterLiteral = Register <$> parseRegisterLiteralToString
+
+parseDereferencedRegister :: Parsec String () Register
+parseDereferencedRegister = asmBrackets $ DereferencedRegister <$> parseRegisterLiteralToString
+
+parseRegisterValueOffSet :: ParsecT String () Identity Register
+parseRegisterValueOffSet = asmBrackets (DereferencedRegisterOffset <$> parseRegisterLiteralToString <*> asmInteger)
 
 
 parseDWordPtr :: Parsec String () Register
@@ -46,6 +55,7 @@ tokenParser = P.makeTokenParser asmIntelDef
 asmLexeme = P.lexeme tokenParser
 asmReserved = P.reserved tokenParser
 asmBrackets = P.brackets tokenParser
+asmInteger = P.integer tokenParser
 
 asmIntelDef :: P.GenLanguageDef String () Identity
 asmIntelDef = P.LanguageDef
