@@ -12,35 +12,42 @@ data Op = Mov WordQualifier Register Register | Push WordQualifier Register
 
 data State = MyState
 
-data WordQualifier = Q
+data WordQualifier = Q | L
   deriving (Eq, Show)
 
-data Register = Register String | DereferencedRegister String | DereferencedRegisterOffset String Integer
+data Register = Register String | DereferencedRegister String | DereferencedRegisterOffset Integer String
   deriving (Eq, Show)
 
 parseMov :: Parsec String () Op
-parseMov = (Mov <$> (qualifiedInstruction "mov") <*> parseRegisterLiteral <* (asmLexeme $ char ',') <*> parseRegisterLiteral)
+parseMov = (Mov <$> (qualifiedInstruction "mov") <*> parseRegister <* (asmLexeme $ char ',') <*> parseRegister)
 
 parsePush :: Parsec String () Op
-parsePush = Push <$> qualifiedInstruction "push" <*> parseRegisterLiteral
+parsePush = Push <$> qualifiedInstruction "push" <*> parseRegister
 
 qualifiedInstruction :: String -> Parsec String () WordQualifier
-qualifiedInstruction name = asmLexeme $ const Q <$> (string name >> (char 'q'))
+qualifiedInstruction name = asmLexeme $ (string name >> parseWordQualifier)
+
+parseWordQualifier :: Parsec String () WordQualifier
+parseWordQualifier =  partialConvert <$> oneOf "lq"
+    where partialConvert x = case x of
+                                'l' -> L
+                                'q' -> Q
+
 
 parseRegister :: Parsec String () Register
-parseRegister = parseRegisterLiteral <|> (try parseRegisterValueOffSet) <|> parseDereferencedRegister
-
-parseRegisterLiteralToString :: ParsecT String () Identity String
-parseRegisterLiteralToString = asmLexeme $ char '%' >> liftA3 mkRegister letter letter letter
+parseRegister = (try parseDereferencedRegister) <|> (try parseRegisterLiteral) <|> (try parseRegisterValueOffSet)
 
 parseRegisterLiteral :: ParsecT String () Identity Register
 parseRegisterLiteral = Register <$> parseRegisterLiteralToString
 
 parseDereferencedRegister :: Parsec String () Register
-parseDereferencedRegister = asmBrackets $ DereferencedRegister <$> parseRegisterLiteralToString
+parseDereferencedRegister = asmParens $ DereferencedRegister <$> parseRegisterLiteralToString
 
 parseRegisterValueOffSet :: ParsecT String () Identity Register
-parseRegisterValueOffSet = asmBrackets (DereferencedRegisterOffset <$> parseRegisterLiteralToString <*> asmInteger)
+parseRegisterValueOffSet =  DereferencedRegisterOffset <$> asmInteger <*> asmParens parseRegisterLiteralToString
+
+parseRegisterLiteralToString :: ParsecT String () Identity String
+parseRegisterLiteralToString = asmLexeme $ char '%' >> liftA3 mkRegister letter letter letter
 
 mkRegister :: Char -> Char -> Char -> String
 mkRegister a b c = [a, b, c]
@@ -53,6 +60,7 @@ asmLexeme = P.lexeme tokenParser
 asmReserved = P.reserved tokenParser
 asmBrackets = P.brackets tokenParser
 asmInteger = P.integer tokenParser
+asmParens = P.parens tokenParser
 
 asmIntelDef :: P.GenLanguageDef String () Identity
 asmIntelDef = P.LanguageDef
