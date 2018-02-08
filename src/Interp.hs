@@ -1,14 +1,15 @@
 module Interp where
 
 import AtParser
+import qualified Data.Map.Strict as Map
 
 data InterpState = InterpState {
     instructionIndex :: Int,
     registers :: RegisterState,
-    stack :: [StackFrame]
+    stack :: Map.Map Int Int
 } deriving (Eq, Show)
 
-startState = InterpState 0 (RegisterState 0 0 0 0) [(StackFrame 0)]
+startState = InterpState 0 (RegisterState 0 0 0 0) Map.empty
 
 data RegisterState = RegisterState {
     rsp :: Int,
@@ -16,10 +17,10 @@ data RegisterState = RegisterState {
     edi :: Int,
     eax :: Int
 } deriving (Eq, Show)
-
-newtype StackFrame = StackFrame Int deriving (Eq, Show)
-
-data InterpError = NoSuchRegister String deriving (Eq, Show)
+ 
+data InterpError = NoSuchRegister String 
+    | NoSuchMemoryLocation Int
+    deriving (Eq, Show)
 
 stepBody :: Body -> InterpState -> Either InterpError InterpState
 stepBody body (InterpState index registers stack) = Right startState
@@ -27,7 +28,7 @@ stepBody body (InterpState index registers stack) = Right startState
 
 applyOp :: Op -> InterpState -> Either InterpError InterpState
 applyOp (Mov word source dest) state = (\x -> state {registers = x}) <$> updatedState
-    where value = registerValue (registers state) source
+    where value = registerValue state source
           updatedState :: Either InterpError RegisterState
           updatedState =  value >>= storeInRegister dest (registers state)
 
@@ -41,10 +42,19 @@ simpleRegisterStore registers "edi" value = Right $ registers {edi = value}
 simpleRegisterStore registers "eax" value = Right $ registers {eax = value}
 simpleRegisterStore registers reg value   = Left  $ NoSuchRegister reg
 
-registerValue :: RegisterState -> Register -> Either InterpError Int
-registerValue state (Register name)             = getRegister name state
--- registerValue state (DereferencedRegister name) = 
+registerValue :: InterpState -> Register -> Either InterpError Int
+registerValue state (Register name)             = getRegister name (registers state)
+registerValue state (DereferencedRegister name) = getRegister name (registers state) >>= adress state
 -- registerValue state (DereferencedRegisterOffset Integer String) = 
+
+adress :: InterpState -> Int -> Either InterpError Int
+adress state address = note (NoSuchMemoryLocation address) $ Map.lookup address memory
+    where memory = stack state
+
+note :: a -> Maybe b -> Either a b
+note x (Just b) = Right b
+note x Nothing = Left x
+
 
 getRegister :: String -> RegisterState -> Either InterpError Int
 getRegister "rsp" = Right . rsp

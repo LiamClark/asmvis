@@ -8,6 +8,7 @@ import AtParserSpec
 import AtParser
 import Interp
 import Data.Either
+import qualified Data.Map.Strict as Map
 
 interpSpec :: Spec
 interpSpec = do
@@ -25,16 +26,25 @@ integrationSpec =
 
 
 unitSpec :: Spec
-unitSpec = do
-    describe "A naive interpreter" $
+unitSpec = 
+    describe "A naive interpreter" $ do
         it "can intepret a move from register to register" $
           applyOp op initialState `shouldBe` (Right expected)
-    registerSpec
+        registerSpec
+        dereferenceRegisterSpec
     where 
         op :: Op
         op = parseSucceeds (parse parseMov "hi.asm" "movq %rsp, %rbp") 
-        initialState = InterpState 0 (RegisterState 1 0 0 0) [(StackFrame 0)]
-        expected     = InterpState 0 (RegisterState 1 1 0 0) [(StackFrame 0)]
+        initialState = InterpState 0 (RegisterState 1 0 0 0) Map.empty
+        expected     = InterpState 0 (RegisterState 1 1 0 0) Map.empty
+
+dereferenceRegisterSpec :: Spec
+dereferenceRegisterSpec = it "can intepret a move from a dereferenced register to a register" $
+        applyOp op initialState `shouldBe` (Right expected)
+    where
+        op = parseSucceeds (parse parseMov "hi.asm" "movq (%rsp), %rbp") 
+        initialState = InterpState 0 (RegisterState 1 0 0 0) (Map.singleton 1 5)
+        expected     = InterpState 0 (RegisterState 1 5 0 0) (Map.singleton 1 5)
 
 registerSpec :: Spec
 registerSpec = 
