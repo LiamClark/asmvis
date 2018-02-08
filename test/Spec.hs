@@ -1,7 +1,9 @@
 import Test.Hspec
 import Text.Parsec
 import AtParserSpec
-import Lib 
+import InterpSpec
 
 main :: IO ()
-main = hspec atSpec
+main = hspec $ do 
+    atSpec
+    interpSpec

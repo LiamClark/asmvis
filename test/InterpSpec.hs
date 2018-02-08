@@ -1,4 +1,6 @@
-module InterpSpec where
+module InterpSpec (
+    interpSpec
+) where
 
 import Text.Parsec
 import Test.Hspec
@@ -11,7 +13,7 @@ interpSpec :: Spec
 interpSpec =
     describe "A naive interpreter" $
         it "can do stuffies" $
-         (\x -> x startState) <$> step `shouldSatisfy` isRight
+         ($ startState) <$> step `shouldSatisfy` isRight
     where
         step :: Either ParseError (InterpState -> InterpState)
         step = stepBody <$> entireFileBody
