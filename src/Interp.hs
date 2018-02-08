@@ -45,7 +45,13 @@ simpleRegisterStore registers reg value   = Left  $ NoSuchRegister reg
 registerValue :: InterpState -> Register -> Either InterpError Int
 registerValue state (Register name)             = getRegister name (registers state)
 registerValue state (DereferencedRegister name) = getRegister name (registers state) >>= adress state
--- registerValue state (DereferencedRegisterOffset Integer String) = 
+registerValue state (DereferencedRegisterOffset offset name) = getRegister name (registers state) >>= dereferenceWithOffSet state offset
+
+dereferenceWithOffSet :: InterpState -> Integer -> Int -> Either InterpError Int
+dereferenceWithOffSet state offset loc = adress state (loc + intOffSet)
+    where 
+        intOffSet :: Int
+        intOffSet = fromInteger offset
 
 adress :: InterpState -> Int -> Either InterpError Int
 adress state address = note (NoSuchMemoryLocation address) $ Map.lookup address memory

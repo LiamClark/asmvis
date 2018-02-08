@@ -32,6 +32,7 @@ unitSpec =
           applyOp op initialState `shouldBe` (Right expected)
         registerSpec
         dereferenceRegisterSpec
+        dereferenceOffSetRegisterSpec
     where 
         op :: Op
         op = parseSucceeds (parse parseMov "hi.asm" "movq %rsp, %rbp") 
@@ -45,6 +46,14 @@ dereferenceRegisterSpec = it "can intepret a move from a dereferenced register t
         op = parseSucceeds (parse parseMov "hi.asm" "movq (%rsp), %rbp") 
         initialState = InterpState 0 (RegisterState 1 0 0 0) (Map.singleton 1 5)
         expected     = InterpState 0 (RegisterState 1 5 0 0) (Map.singleton 1 5)
+
+dereferenceOffSetRegisterSpec :: Spec
+dereferenceOffSetRegisterSpec = it "can intepret a move from a offset dereferenced register to a register" $
+        applyOp op initialState `shouldBe` (Right expected)
+    where
+        op = parseSucceeds (parse parseMov "hi.asm" "movq -4(%rsp), %rbp") 
+        initialState = InterpState 0 (RegisterState 5 0 0 0) (Map.singleton 1 5)
+        expected     = InterpState 0 (RegisterState 5 5 0 0) (Map.singleton 1 5)
 
 registerSpec :: Spec
 registerSpec = 
