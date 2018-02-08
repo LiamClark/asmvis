@@ -13,9 +13,10 @@ interpSpec :: Spec
 interpSpec =
     describe "A naive interpreter" $
         it "can do stuffies" $
-         ($ startState) <$> step `shouldSatisfy` isRight
+         stepBody body startState `shouldBe` startState
     where
-        step :: Either ParseError (InterpState -> InterpState)
-        step = stepBody <$> entireFileBody
+        body = parseSucceeds entireFileBody
 
-
+parseSucceeds :: Show a => Either a b -> b
+parseSucceeds (Left err) = error . show $ err
+parseSucceds (Right x) = x
