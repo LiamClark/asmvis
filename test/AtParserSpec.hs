@@ -14,18 +14,20 @@ atSpec = do
 atIntegrationSpec :: Spec
 atIntegrationSpec = describe "the at&t parser" $
         it "can parse the whole file" $
-            (parse parseBody name "movq %rsp, %rbp")  `shouldSatisfy` isRight
-    where
-        file = "pushq %rbp \n\
-        \movq %rsp, %rbp\n\
-        \movl %edi, -4(%rbp)\n\
-        \movl -4(%rbp), %eax\n\
-        \imull -4(%rbp), %eax\n\
-        \popq %rbp\n\
-        \ret\n"
-        name = "hi.asm"
+           entireFile `shouldSatisfy` isRight
+  
 
-
+entireFile :: Either ParseError Body
+entireFile = (parse parseBody name file)
+  where
+    file = "pushq %rbp \n\
+    \movq %rsp, %rbp\n\
+    \movl %edi, -4(%rbp)\n\
+    \movl -4(%rbp), %eax\n\
+    \imull -4(%rbp), %eax\n\
+    \popq %rbp\n\
+    \ret\n"
+    name = "hi.asm"
 
 atUnitSpec ::Spec
 atUnitSpec = describe "an at&t syntax parser" $ do

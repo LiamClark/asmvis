@@ -1,4 +1,4 @@
-module AtParser where
+module AtParser where 
 
 import Text.Parsec.Char
 import Text.Parsec.Prim
