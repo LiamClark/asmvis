@@ -7,8 +7,9 @@ import Data.Functor.Identity
 import Control.Applicative hiding ((<|>))
 import qualified Text.Parsec.Token as P
 
-data Body = Body [Op]
-  deriving (Eq, Show)
+data Body = Body {
+  ops :: [Op]
+} deriving (Eq, Show)
 
 data Op = Mov WordQualifier Register Register 
         | Push WordQualifier Register
@@ -22,7 +23,9 @@ data State = MyState
 data WordQualifier = Q | L
   deriving (Eq, Show)
 
-data Register = Register String | DereferencedRegister String | DereferencedRegisterOffset Integer String
+data Register = Register String 
+  | DereferencedRegister String 
+  | DereferencedRegisterOffset Integer String
   deriving (Eq, Show)
 
 parseBody :: Parsec String () Body
