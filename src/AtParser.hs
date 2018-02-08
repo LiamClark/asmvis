@@ -7,9 +7,14 @@ import Data.Functor.Identity
 import Control.Applicative hiding ((<|>))
 import qualified Text.Parsec.Token as P
 
+data Body = Body [Op]
+  deriving (Eq, Show)
+
 data Op = Mov WordQualifier Register Register 
         | Push WordQualifier Register
         | IMul WordQualifier Register Register
+        | Pop WordQualifier Register
+        | Ret
     deriving (Eq, Show)
 
 data State = MyState
@@ -20,6 +25,10 @@ data WordQualifier = Q | L
 data Register = Register String | DereferencedRegister String | DereferencedRegisterOffset Integer String
   deriving (Eq, Show)
 
+parseBody :: Parsec String () Body
+parseBody = Body <$> (many1 . choice)  (try <$> lineParsers)
+    where lineParsers = [parseMov, parsePush, parseIMul, parsePop, parseRet]
+
 parseMov :: Parsec String () Op
 parseMov = parseTwoRegisters $ Mov <$> (qualifiedInstruction "mov")
 
@@ -27,7 +36,13 @@ parsePush :: Parsec String () Op
 parsePush = Push <$> qualifiedInstruction "push" <*> parseRegister
 
 parseIMul :: Parsec String () Op
-parseIMul = parseTwoRegisters $ IMul <$> (qualifiedInstruction "imul")
+parseIMul = parseTwoRegisters $ IMul <$> qualifiedInstruction "imul"
+
+parsePop :: Parsec String () Op
+parsePop = Pop <$> qualifiedInstruction "pop" <*> parseRegister
+
+parseRet :: Parsec String () Op
+parseRet = const Ret <$> asmReserved "ret"
 
 qualifiedInstruction :: String -> Parsec String () WordQualifier
 qualifiedInstruction name = asmLexeme $ (string name >> parseWordQualifier)
